@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#080512" />
+    <title>POWER ASCENDANT</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div id="game">
+      <!-- Canvas layers get injected here by the Viewport -->
+      <div id="arena"></div>
+
+      <!-- Battle Readout (HUD) overlay -->
+      <div id="hud" class="readout" role="status" aria-live="off">
+        <div class="readout-frame">
+          <div class="readout-row readout-top">
+            <span class="readout-label">PWR</span>
+            <span id="hud-power" class="readout-power">9,000</span>
+          </div>
+          <div class="readout-form"><span id="hud-form">Base</span></div>
+          <div class="bar bar-hp">
+            <span class="bar-tag">HP</span>
+            <span class="bar-track"><span id="hud-hp" class="bar-fill"></span></span>
+          </div>
+          <div class="bar bar-ki">
+            <span class="bar-tag">KI</span>
+            <span class="bar-track"><span id="hud-ki" class="bar-fill"></span></span>
+          </div>
+          <div class="readout-row readout-meta">
+            <span class="readout-stat"><span class="readout-label">ZENN</span> <span id="hud-zenn" class="readout-zenn-val">0</span></span>
+            <span class="readout-stat"><span class="readout-label">DR</span> <span id="hud-recovery" class="readout-recovery">3/3</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings cog (below the player status) + overlay — works in Dojo & Fray -->
+      <button id="settings-cog" class="settings-cog" title="Settings" aria-label="Settings">⚙</button>
+      <div id="settings-overlay" class="settings-overlay" hidden>
+        <div class="settings-card">
+          <div class="settings-head">
+            <h2>Audio</h2>
+            <button id="settings-close" class="settings-close" aria-label="Close">✕</button>
+          </div>
+          <label class="dev-toggle">
+            <input type="checkbox" id="mute-toggle" />
+            <span>Mute all audio</span>
+          </label>
+          <label class="slider-row">
+            <span>Music</span>
+            <input type="range" id="music-volume" min="0" max="100" value="50" />
+          </label>
+          <label class="slider-row">
+            <span>Sound effects</span>
+            <input type="range" id="sfx-volume" min="0" max="100" value="30" />
+          </label>
+          <p class="stub">Settings are saved automatically.</p>
+        </div>
+      </div>
+
+      <!-- Dojo: prominent entry to combat (hidden while a panel is open) -->
+      <button id="enter-fray" class="enter-fray">⚔ ENTER THE FRAY</button>
+
+      <!-- Fray: minimal combat HUD -->
+      <div id="fray-hud">
+        <span id="wave-indicator" class="wave-indicator">Wave 1</span>
+        <button id="control-toggle" class="control-toggle" title="Toggle manual / auto control">🎮 Manual</button>
+        <button id="return-dojo" class="return-dojo">⤶ Dojo</button>
+      </div>
+
+      <!-- Slide-up panels (the Dojo management screens) -->
+      <section id="panels" aria-label="Menus">
+        <div class="panel" data-panel="team" hidden>
+          <div class="panel-head">
+            <h2>Team</h2>
+            <div class="subtabs" role="group" aria-label="Team view">
+              <button class="subtab active" data-sub="roster">Roster</button>
+              <button class="subtab" data-sub="training">Training</button>
+            </div>
+          </div>
+
+          <div class="subview" data-sub="roster">
+            <p class="stub">Defeat enemies to recruit them. Send idle fighters (up to 3) on patrol for Zenn &amp; gear. <span class="gear-count">Fighters: <b id="roster-count">0/8</b></span></p>
+            <div class="dev-buttons">
+              <button id="patrol-short" class="btn">Patrol 15m</button>
+              <button id="patrol-medium" class="btn">Patrol 1h</button>
+              <button id="patrol-long" class="btn">Patrol 4h</button>
+            </div>
+            <div id="roster-list" class="roster-list"></div>
+          </div>
+
+          <div class="subview" data-sub="training" hidden>
+            <div class="gear-sub">Sparring <span id="spar-slots" class="gear-count">0/1</span></div>
+            <p class="stub">Pairs two idle fighters — both gain XP (the weaker gains 3×).</p>
+            <div class="dev-buttons">
+              <button id="spar-start" class="btn">Start sparring pair</button>
+            </div>
+            <div id="spar-list" class="roster-list"></div>
+
+            <div class="gear-sub">Gravity Chamber <span id="grav-status" class="gear-count"></span></div>
+            <p class="stub">Solo training — higher gravity gives bigger permanent stat gains but a longer recovery.</p>
+            <div class="train-row">
+              <label class="train-label">Gravity <select id="grav-select"></select>×</label>
+              <button id="grav-start" class="btn">Start</button>
+            </div>
+
+            <div class="gear-sub">Meditation <span id="med-status" class="gear-count"></span></div>
+            <p class="stub">Builds Ki &amp; Awakening Points in the background — keep fighting while it runs.</p>
+            <div class="train-row">
+              <label class="train-label">Hours
+                <select id="med-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+              </label>
+              <button id="med-start" class="btn">Start</button>
+            </div>
+
+            <div class="gear-sub">Weighted Training <span id="wt-status" class="gear-count"></span></div>
+            <p class="stub">Fight handicapped; removing the weights converts accrued debt into permanent stats.</p>
+            <div class="train-row">
+              <label class="train-label">Penalty
+                <select id="wt-select"><option value="0.1">10%</option><option value="0.2" selected>20%</option><option value="0.3">30%</option></select>
+              </label>
+              <button id="wt-toggle" class="btn">Equip weights</button>
+            </div>
+
+            <p class="stub" id="train-bonus"></p>
+          </div>
+        </div>
+        <div class="panel" data-panel="character" hidden>
+          <div class="panel-head">
+            <h2>Character</h2>
+            <div class="subtabs" role="group" aria-label="Character view">
+              <button class="subtab active" data-sub="gear">Gear</button>
+              <button class="subtab" data-sub="skills">Skills</button>
+              <button class="subtab" data-sub="stats">Stats</button>
+            </div>
+          </div>
+
+          <div class="subview" data-sub="gear">
+            <div class="gear-item-btns gear-actions">
+              <button id="gear-auto-equip" class="btn">Auto-Equip Best</button>
+              <button id="gear-salvage-all" class="btn btn-alt">Salvage satchel</button>
+            </div>
+            <div id="gear-slots" class="gear-slots"><!-- equipped slots, built by ui.js --></div>
+            <h3 class="gear-sub">Satchel <span id="gear-count" class="gear-count">0</span></h3>
+            <div id="gear-satchel" class="gear-satchel"><!-- drops, built by ui.js --></div>
+          </div>
+
+          <div class="subview" data-sub="skills" hidden>
+            <p class="stub">Innate: Ki Blast + Basic Strike. Equip acquired techniques into your slots. Find them from kills, buy Technique Boxes with Zenn, or learn them in a Trance with Awakening Points.</p>
+            <div class="gear-item-btns gear-actions">
+              <button id="skills-auto" class="btn">Auto-Equip Best</button>
+              <button id="skills-salvage-all" class="btn btn-alt">Salvage satchel</button>
+            </div>
+            <h3 class="gear-sub">Equipped <span id="skills-slotcount" class="gear-count">0/3</span></h3>
+            <div id="skills-slots" class="gear-slots"><!-- built by ui.js --></div>
+            <h3 class="gear-sub">Satchel <span id="skills-count" class="gear-count">0</span></h3>
+            <div id="skills-satchel" class="gear-satchel"><!-- built by ui.js --></div>
+            <h3 class="gear-sub">Technique Boxes <span class="gear-count">Zenn: <b id="skills-zenn">0</b></span></h3>
+            <div id="skill-boxes" class="dev-buttons"><!-- built by ui.js --></div>
+            <h3 class="gear-sub">Technique Trance <span id="skills-awaken" class="gear-count">0 AP</span></h3>
+            <div class="dev-buttons"><button id="skill-trance" class="btn">Trance</button></div>
+            <p id="skills-status" class="stub"></p>
+          </div>
+
+          <div class="subview" data-sub="stats" hidden>
+            <p class="stub">Your totals with everything stacked — base + gear + training, then your active transformation multiplier, plus the combat bonuses from upgrades, gear, and Supporter.</p>
+            <div id="stats-readout"><!-- built by ui.js --></div>
+          </div>
+        </div>
+
+        <div class="panel" data-panel="upgrades" hidden>
+          <div class="panel-head">
+            <h2>Upgrades</h2>
+            <span class="panel-zenn">Zenn: <b id="upg-zenn">0</b></span>
+          </div>
+          <div id="buy-amount" class="buy-amount" role="group" aria-label="Buy amount">
+            <button class="buyamt active" data-amt="1">×1</button>
+            <button class="buyamt" data-amt="10">×10</button>
+            <button class="buyamt" data-amt="100">×100</button>
+            <button class="buyamt" data-amt="max">Max</button>
+          </div>
+          <div id="upg-list" class="upg-list"><!-- rows built by ui.js --></div>
+        </div>
+        <div class="panel" data-panel="prestige" hidden>
+          <div class="panel-head">
+            <h2>Prestige</h2>
+            <span class="panel-zenn">Remnant: <b id="rem-bal">0</b></span>
+          </div>
+          <p id="prestige-status" class="prestige-status"></p>
+
+          <div class="peril" id="peril-box" hidden>
+            <h3 class="gear-sub">Peril — difficulty stake</h3>
+            <p class="stub" id="peril-active"></p>
+            <p class="stub">Choose the difficulty for your <b>next</b> run. Higher tiers make enemies tankier and hit harder, but boost all rewards (Zenn, Remnant, loot). Locked in until you prestige again — clear a tier to unlock the next.</p>
+            <div class="peril-tiers" id="peril-tiers"><!-- buttons built by ui.js --></div>
+            <label class="peril-onslaught" id="peril-onslaught-row" hidden>
+              <input type="checkbox" id="peril-onslaught"> <b>Onslaught</b> — timed waves: reinforcements keep arriving until you clear (extra reward, capped for performance).
+            </label>
+          </div>
+
+          <div class="dev-buttons">
+            <button id="prestige-btn" class="btn">Prestige</button>
+            <button id="ascend-btn" class="btn btn-alt">Ascend NG+</button>
+          </div>
+          <h3 class="gear-sub">Remnant Upgrades</h3>
+          <div id="legacy-list" class="upg-list"><!-- built by ui.js --></div>
+
+          <h3 class="gear-sub">Support the Developer</h3>
+          <p class="stub" id="supporter-desc">The whole game is free with no ads. One optional Supporter Pack (a one-time purchase) grants small permanent bonuses: +10% Zenn, +10% power per kill, +5% loot rarity — a thank-you, nothing more.</p>
+          <div class="dev-buttons">
+            <button id="supporter-buy" class="btn">Support · $1.99</button>
+          </div>
+          <p id="supporter-status" class="stub"></p>
+        </div>
+
+        <div class="panel" data-panel="activities" hidden>
+          <div class="panel-head">
+            <h2>Activities</h2>
+            <div class="subtabs" role="group" aria-label="Activities view">
+              <button class="subtab active" data-sub="wish">Wish</button>
+              <button class="subtab" data-sub="events">Events</button>
+            </div>
+          </div>
+
+          <div class="subview" data-sub="wish">
+            <p class="stub">Collect 7 Star Relics — bosses drop them (better odds the deeper you go), patrols rarely. A full set grants one wish. Relics vanish on prestige. <span class="gear-count">Star Relics: <b id="relic-count">0/7</b></span></p>
+            <div id="relic-track" class="relic-track"><!-- pips built by ui.js --></div>
+            <div id="wish-list" class="wish-list"><!-- wish buttons built by ui.js --></div>
+            <p id="wish-status" class="stub"></p>
+          </div>
+
+          <div class="subview" data-sub="events" hidden>
+            <div class="gear-sub">Rival</div>
+            <p class="stub">Your shadow — mirrors your build, a step stronger. Appears every 10 waves; beat it to pass. Lose and you gain a <b>Crisis Surge</b> comeback buff.</p>
+            <p class="stub" id="rival-info">—</p>
+            <div class="gear-sub">Tournament</div>
+            <p class="stub">A timed 1v1 bracket. The arena tightens each round. Win the grand final for Legendary+ loot and a guaranteed Star Relic.</p>
+            <p class="stub" id="tourney-info">—</p>
+            <div class="dev-buttons">
+              <button id="tourney-enter" class="btn">Enter Tournament</button>
+            </div>
+            <p id="events-status" class="stub"></p>
+          </div>
+        </div>
+
+        <!-- Dev preview: combat + destruction controls -->
+        <div class="panel" data-panel="dev" hidden>
+          <h2>Dev · Combat Preview</h2>
+          <label class="dev-toggle">
+            <input type="checkbox" id="pause-toggle" />
+            <span>Pause combat</span>
+          </label>
+          <p class="stub">Combat runs automatically. Tap the ground to chip it. Audio settings live in the Audio tab.</p>
+          <div class="dev-buttons">
+            <button id="dev-wave" class="btn">Next wave</button>
+            <button id="dev-boss" class="btn">Spawn boss</button>
+            <button id="dev-trench" class="btn">Beam trench</button>
+            <button id="dev-reset" class="btn btn-alt">Reset ground</button>
+            <button id="dev-skip" class="btn">Skip timers 1h</button>
+            <button id="dev-transform" class="btn">Preview transform</button>
+          </div>
+
+          <h3 class="gear-sub">Save</h3>
+          <div class="dev-buttons">
+            <button id="save-now" class="btn">Save now</button>
+            <button id="save-export" class="btn">Export</button>
+            <button id="save-import" class="btn">Import</button>
+            <button id="save-wipe" class="btn btn-alt">Wipe save</button>
+            <button id="progress-reset" class="btn btn-alt">Reset progress</button>
+            <button id="dev-supporter" class="btn">Toggle Supporter (dev)</button>
+          </div>
+          <textarea id="save-io" class="save-io" placeholder="Export writes your save code here; paste one in and tap Import." rows="2"></textarea>
+          <p id="save-status" class="stub"></p>
+        </div>
+      </section>
+
+      <!-- Bottom tab bar -->
+      <nav id="nav" aria-label="Primary">
+        <button class="tab" data-tab="team"><span class="tab-ico">👥</span><span class="tab-txt">Team</span></button>
+        <button class="tab" data-tab="character"><span class="tab-ico">🥋</span><span class="tab-txt">Character</span></button>
+        <button class="tab" data-tab="upgrades"><span class="tab-ico">⬆</span><span class="tab-txt">Upgrades</span></button>
+        <button class="tab" data-tab="prestige"><span class="tab-ico">✦</span><span class="tab-txt">Prestige</span></button>
+        <button class="tab" data-tab="activities"><span class="tab-ico">🏆</span><span class="tab-txt">Activities</span></button>
+        <button class="tab" data-tab="dev"><span class="tab-ico">⚙</span><span class="tab-txt">Dev</span></button>
+      </nav>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
